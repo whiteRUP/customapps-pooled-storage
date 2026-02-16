@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  pooled-storage-manager:
+    build: .
+    container_name: pooled-storage-manager
+    image: pooled-storage-manager:latest
+    ports:
+      - "20050:20050"
+      - "20060-20100:20060-20100"
+    volumes:
+      - /var/lib/docker/pooled-storage/config:/config
+      - /var/lib/docker/pooled-storage/data:/data
+    environment:
+      - PORT=20050
+      - RCLONE_CONFIG_DIR=/config
+      - NODE_ENV=production
+    restart: unless-stopped
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/fuse
+    security_opt:
+      - apparmor:unconfined
+    networks:
+      - pooled-storage-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:20050/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  pooled-storage-network:
+    driver: bridge
+
+volumes:
+  config:
+  data:

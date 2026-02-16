@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pooled Storage Manager</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <i class="fas fa-layer-group"></i>
+                <h1>Pooled Storage</h1>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-view="dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-view="pools">
+                    <i class="fas fa-database"></i>
+                    <span>Storage Pools</span>
+                </a>
+                <a href="#" class="nav-item" data-view="accounts">
+                    <i class="fas fa-users"></i>
+                    <span>Accounts</span>
+                </a>
+                <a href="#" class="nav-item" data-view="settings">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <div class="status-dot status-active"></div>
+                    <span>System Online</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left">
+                    <h2 id="view-title">Dashboard</h2>
+                </div>
+                <div class="header-right">
+                    <div class="header-stats">
+                        <div class="stat-item">
+                            <i class="fas fa-server"></i>
+                            <span id="active-pools-count">0</span>
+                            <small>Active Pools</small>
+                        </div>
+                        <div class="stat-item">
+                            <i class="fas fa-user"></i>
+                            <span id="accounts-count">0</span>
+                            <small>Accounts</small>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <!-- Dashboard View -->
+                <div id="dashboard-view" class="view-content active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon blue">
+                                <i class="fas fa-database"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="total-pools">0</h3>
+                                <p>Total Pools</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon green">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="active-pools">0</h3>
+                                <p>Active Pools</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon purple">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="total-accounts">0</h3>
+                                <p>Accounts</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon orange">
+                                <i class="fas fa-hdd"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="total-storage">0 GB</h3>
+                                <p>Total Storage</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Active Pools</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="active-pools-list" class="pools-list">
+                                    <p class="empty-state">No active pools</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Recent Activity</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="activity-log" class="activity-log">
+                                    <p class="empty-state">No recent activity</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pools View -->
+                <div id="pools-view" class="view-content">
+                    <div class="view-header">
+                        <button class="btn btn-primary" onclick="showCreatePoolModal()">
+                            <i class="fas fa-plus"></i> Create Pool
+                        </button>
+                    </div>
+                    
+                    <div id="pools-list" class="pools-grid">
+                        <p class="empty-state">No pools created yet</p>
+                    </div>
+                </div>
+
+                <!-- Accounts View -->
+                <div id="accounts-view" class="view-content">
+                    <div class="view-header">
+                        <button class="btn btn-primary" onclick="showAddAccountModal()">
+                            <i class="fas fa-plus"></i> Add Account
+                        </button>
+                    </div>
+                    
+                    <div id="accounts-list" class="accounts-grid">
+                        <p class="empty-state">No accounts added yet</p>
+                    </div>
+                </div>
+
+                <!-- Settings View -->
+                <div id="settings-view" class="view-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>System Information</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <label>Rclone Version</label>
+                                    <span id="rclone-version">Loading...</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Home Server IP</label>
+                                    <span>192.168.100.14</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>API Port</label>
+                                    <span>20050</span>
+                                </div>
+                                <div class="info-item">
+                                    <label>Mount Ports Range</label>
+                                    <span>20060-20100</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>OMV Mount Instructions</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="instructions">
+                                <h4>Mounting in OpenMediaVault:</h4>
+                                <ol>
+                                    <li>Start your pool from the "Storage Pools" section</li>
+                                    <li>Note the mount protocol and port number</li>
+                                    <li>In OMV, go to Storage → File Systems</li>
+                                    <li>Click "Mount" and select the appropriate protocol:
+                                        <ul>
+                                            <li><strong>WebDAV:</strong> Use "Remote Share" → WebDAV</li>
+                                            <li><strong>NFS:</strong> Use "Remote Share" → NFS</li>
+                                            <li><strong>SMB:</strong> Use "Remote Share" → SMB/CIFS</li>
+                                        </ul>
+                                    </li>
+                                    <li>Enter server address: <code>192.168.100.14</code></li>
+                                    <li>Enter the port number displayed in the pool details</li>
+                                    <li>Mount and access your pooled storage!</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Pool Modal -->
+    <div id="create-pool-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create Storage Pool</h3>
+                <button class="modal-close" onclick="closeModal('create-pool-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="create-pool-form">
+                    <div class="form-group">
+                        <label>Pool Name *</label>
+                        <input type="text" name="name" required placeholder="e.g., Media Storage">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea name="description" placeholder="Optional description"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Serve Protocol</label>
+                        <select name="serveProtocol">
+                            <option value="webdav">WebDAV</option>
+                            <option value="nfs">NFS</option>
+                            <option value="smb">SMB</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" name="enableChunker">
+                            Enable Chunker (for large files)
+                        </label>
+                    </div>
+                    
+                    <div class="form-group" id="chunk-size-group" style="display: none;">
+                        <label>Chunk Size</label>
+                        <select name="chunkSize">
+                            <option value="1G">1 GB</option>
+                            <option value="2G" selected>2 GB</option>
+                            <option value="5G">5 GB</option>
+                            <option value="10G">10 GB</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" name="allowSplitFiles">
+                            Allow files larger than individual drive size
+                        </label>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('create-pool-modal')">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Pool</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Account Modal -->
+    <div id="add-account-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Account</h3>
+                <button class="modal-close" onclick="closeModal('add-account-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="auth-methods">
+                    <button class="auth-method-btn" onclick="selectAuthMethod('oauth')">
+                        <i class="fas fa-key"></i>
+                        <span>OAuth Token</span>
+                        <small>Manual token authentication</small>
+                    </button>
+                    <button class="auth-method-btn" onclick="selectAuthMethod('service')">
+                        <i class="fas fa-file-code"></i>
+                        <span>Service Account</span>
+                        <small>Google service account JSON</small>
+                    </button>
+                    <button class="auth-method-btn" onclick="selectAuthMethod('remote')">
+                        <i class="fas fa-globe"></i>
+                        <span>Remote Auth</span>
+                        <small>Rclone web interface</small>
+                    </button>
+                </div>
+                
+                <div id="auth-form-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pool Details Modal -->
+    <div id="pool-details-modal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3 id="pool-details-title">Pool Details</h3>
+                <button class="modal-close" onclick="closeModal('pool-details-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="pool-details-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

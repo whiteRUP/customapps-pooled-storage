@@ -1,0 +1,9 @@
+# Single command to initialize Git, commit, and push
+# Run this from PowerShell in the C:\Users\rupam directory
+
+cd C:\Users\rupam\customapps-pooled-storage; if (-not (Test-Path .git)) { git init }; git config user.name 'whiterup'; git config user.email 'whiterup@users.noreply.github.com'; git add .; git commit -m 'Initial commit: Pooled Storage Manager'; git branch -M main; git remote add origin https://github.com/whiterup/customapps-pooled-storage.git 2>$null; git push -u origin main
+
+# Note: Make sure you've created the GitHub repository first at:
+# https://github.com/new
+# Repository name: customapps-pooled-storage
+# Do NOT initialize with README, .gitignore, or license
