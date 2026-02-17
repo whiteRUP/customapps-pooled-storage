@@ -127,14 +127,30 @@
             <strong>Choose Your Provider</strong>
         </div>
         
-        <div class="providers">
+        <div class="providers" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
             <div class="provider-btn" onclick="selectProvider('google')">
                 <h3>📁 Google Drive</h3>
-                <p>Connect your Google account</p>
+                <p>OAuth supported</p>
             </div>
             <div class="provider-btn" onclick="selectProvider('microsoft')">
                 <h3>📂 OneDrive</h3>
-                <p>Connect your Microsoft account</p>
+                <p>OAuth supported</p>
+            </div>
+            <div class="provider-btn" onclick="selectProvider('dropbox')">
+                <h3>📦 Dropbox</h3>
+                <p>OAuth supported</p>
+            </div>
+            <div class="provider-btn" onclick="selectProvider('box')">
+                <h3>📋 Box</h3>
+                <p>OAuth supported</p>
+            </div>
+            <div class="provider-btn" onclick="selectProvider('mega')">
+                <h3>🔷 Mega</h3>
+                <p>Username/Password</p>
+            </div>
+            <div class="provider-btn" onclick="selectProvider('pcloud')">
+                <h3>☁️ pCloud</h3>
+                <p>OAuth supported</p>
             </div>
         </div>
     </div>
@@ -142,16 +158,29 @@
     <div id="step2" class="card hidden">
         <div class="step">
             <span class="step-number">2</span>
-            <strong>Click to Authorize</strong>
+            <strong id="step2Title">Authorize Your Account</strong>
         </div>
         
-        <p>Click the button below to open the authorization page:</p>
-        <button id="authButton" onclick="openAuthWindow()">🔓 Open Authorization Page</button>
+        <div id="oauthFlow" class="hidden">
+            <p>Click the button below to open the authorization page:</p>
+            <button id="authButton" onclick="openAuthWindow()">🔓 Open Authorization Page</button>
+            
+            <div id="authUrl" class="hidden" style="margin-top: 20px;">
+                <p>Or copy this URL manually:</p>
+                <input type="text" id="urlInput" readonly onclick="this.select()">
+                <button onclick="copyUrl()">📋 Copy URL</button>
+            </div>
+        </div>
         
-        <div id="authUrl" class="hidden" style="margin-top: 20px;">
-            <p>Or copy this URL manually:</p>
-            <input type="text" id="urlInput" readonly onclick="this.select()">
-            <button onclick="copyUrl()">📋 Copy URL</button>
+        <div id="credentialsFlow" class="hidden">
+            <p>Enter your account credentials:</p>
+            <label id="usernameLabel">Username/Email:</label>
+            <input type="text" id="username" placeholder="your@email.com">
+            
+            <label>Password:</label>
+            <input type="password" id="password" placeholder="Your password">
+            
+            <button onclick="submitCredentials()">✅ Connect Account</button>
         </div>
     </div>
 
@@ -178,47 +207,160 @@
     <script>
         let selectedProvider = '';
         let authWindow = null;
+        
+        const PROVIDER_CONFIG = {
+            google: {
+                type: 'oauth',
+                name: 'Google Drive',
+                rcloneType: 'drive',
+                clientId: '202264815644.apps.googleusercontent.com',
+                redirectUri: 'urn:ietf:wg:oauth:2.0:oob',
+                scope: 'https://www.googleapis.com/auth/drive',
+                authUrl: 'https://accounts.google.com/o/oauth2/auth'
+            },
+            microsoft: {
+                type: 'oauth',
+                name: 'OneDrive',
+                rcloneType: 'onedrive',
+                clientId: 'b15665d9-eda6-4092-8539-0eec376afd59',
+                redirectUri: 'http://localhost:53682/',
+                scope: 'Files.Read Files.ReadWrite Files.Read.All Files.ReadWrite.All offline_access',
+                authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'
+            },
+            dropbox: {
+                type: 'oauth',
+                name: 'Dropbox',
+                rcloneType: 'dropbox',
+                clientId: 'wnwqf3u1zr6g7i1',
+                redirectUri: 'http://localhost:53682/',
+                scope: '',
+                authUrl: 'https://www.dropbox.com/oauth2/authorize'
+            },
+            box: {
+                type: 'oauth',
+                name: 'Box',
+                rcloneType: 'box',
+                clientId: 'ejm2l5dnyb5s1tx7cdw8mvp43eu2f9z7',
+                redirectUri: 'http://localhost:53682/',
+                scope: '',
+                authUrl: 'https://account.box.com/api/oauth2/authorize'
+            },
+            pcloud: {
+                type: 'oauth',
+                name: 'pCloud',
+                rcloneType: 'pcloud',
+                clientId: '2PrGK6b2Mn8',
+                redirectUri: 'http://localhost:53682/',
+                scope: '',
+                authUrl: 'https://my.pcloud.com/oauth2/authorize'
+            },
+            mega: {
+                type: 'credentials',
+                name: 'Mega',
+                rcloneType: 'mega',
+                usernameLabel: 'Email'
+            }
+        };
 
         function selectProvider(provider) {
             selectedProvider = provider;
+            const config = PROVIDER_CONFIG[provider];
+            
             document.getElementById('step1').style.display = 'none';
             document.getElementById('step2').classList.remove('hidden');
             
-            // Generate auth URL based on provider
-            if (provider === 'google') {
-                generateGoogleAuthUrl();
-            } else {
-                generateOneDriveAuthUrl();
+            if (config.type === 'oauth') {
+                // Show OAuth flow
+                document.getElementById('step2Title').textContent = `Authorize ${config.name}`;
+                document.getElementById('oauthFlow').classList.remove('hidden');
+                document.getElementById('credentialsFlow').classList.add('hidden');
+                generateAuthUrl(provider);
+            } else if (config.type === 'credentials') {
+                // Show credentials flow
+                document.getElementById('step2Title').textContent = `Connect to ${config.name}`;
+                document.getElementById('oauthFlow').classList.add('hidden');
+                document.getElementById('credentialsFlow').classList.remove('hidden');
+                document.getElementById('usernameLabel').textContent = config.usernameLabel + ':';
+                
+                // Show step 3 for credentials
+                document.getElementById('step3').classList.remove('hidden');
+                document.getElementById('tokenInput').closest('div').parentElement.innerHTML = `
+                    <p>Your credentials will be used to create the account.</p>
+                    <label>Account Name:</label>
+                    <input type="text" id="accountName" placeholder="e.g., My ${config.name}">
+                    <button onclick="submitCredentialsAccount()">✅ Add Account</button>
+                    <button class="secondary" onclick="resetForm()">🔄 Start Over</button>
+                    <div id="result"></div>
+                `;
             }
         }
 
-        function generateGoogleAuthUrl() {
-            // Google Drive OAuth URL
-            const clientId = '202264815644.apps.googleusercontent.com'; // rclone's client ID
-            const redirectUri = 'urn:ietf:wg:oauth:2.0:oob';
-            const scope = 'https://www.googleapis.com/auth/drive';
+        function generateAuthUrl(provider) {
+            const config = PROVIDER_CONFIG[provider];
+            let authUrl = '';
             
-            const authUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
-            
-            document.getElementById('urlInput').value = authUrl;
-            document.getElementById('authButton').onclick = () => window.open(authUrl, '_blank');
-            document.getElementById('authUrl').classList.remove('hidden');
-        }
-
-        function generateOneDriveAuthUrl() {
-            // OneDrive OAuth URL
-            const clientId = 'b15665d9-eda6-4092-8539-0eec376afd59'; // rclone's client ID
-            const redirectUri = 'http://localhost:53682/';
-            const scope = 'Files.Read Files.ReadWrite Files.Read.All Files.ReadWrite.All offline_access';
-            
-            const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&prompt=consent`;
+            if (provider === 'google') {
+                authUrl = `${config.authUrl}?client_id=${config.clientId}&redirect_uri=${config.redirectUri}&response_type=code&scope=${config.scope}&access_type=offline&prompt=consent`;
+            } else if (provider === 'microsoft') {
+                authUrl = `${config.authUrl}?client_id=${config.clientId}&redirect_uri=${config.redirectUri}&response_type=code&scope=${config.scope}&prompt=consent`;
+            } else if (provider === 'dropbox') {
+                authUrl = `${config.authUrl}?client_id=${config.clientId}&redirect_uri=${config.redirectUri}&response_type=code&token_access_type=offline`;
+            } else if (provider === 'box') {
+                authUrl = `${config.authUrl}?client_id=${config.clientId}&redirect_uri=${config.redirectUri}&response_type=code`;
+            } else if (provider === 'pcloud') {
+                authUrl = `${config.authUrl}?client_id=${config.clientId}&redirect_uri=${config.redirectUri}&response_type=code`;
+            }
             
             document.getElementById('urlInput').value = authUrl;
             document.getElementById('authButton').onclick = () => window.open(authUrl, '_blank');
             document.getElementById('authUrl').classList.remove('hidden');
         }
 
-        function openAuthWindow() {
+        async function submitCredentialsAccount() {
+            const accountName = document.getElementById('accountName').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('result');
+            const config = PROVIDER_CONFIG[selectedProvider];
+            
+            if (!accountName || !username || !password) {
+                resultDiv.innerHTML = '<div class="error">Please fill in all fields</div>';
+                return;
+            }
+            
+            // For Mega and other credential-based providers
+            // We need to create the rclone config via API
+            try {
+                const response = await fetch('/api/accounts/credentials', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: accountName,
+                        type: config.rcloneType,
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = '<div class="success">✅ Account added successfully! Redirecting to dashboard...</div>';
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    const error = await response.json();
+                    resultDiv.innerHTML = `<div class="error">❌ Error: ${error.error || 'Failed to add account'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Failed to connect to server: ${error.message}</div>`;
+            }
+        }
+
+        function submitCredentials() {
+            // Move to step 3
+            document.getElementById('step3').classList.remove('hidden');
+            document.getElementById('step3').scrollIntoView({ behavior: 'smooth' });
+        }
             const url = document.getElementById('urlInput').value;
             authWindow = window.open(url, 'OAuth Authorization', 'width=600,height=700');
             

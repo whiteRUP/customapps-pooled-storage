@@ -654,6 +654,180 @@ app.post('/api/accounts/:id/refresh', async (req, res) => {
   }
 });
 
+// === RCLONE AUTOMATION ENDPOINTS ===
+
+// Start rclone OAuth flow - generates auth URL
+app.post('/api/rclone/auth/start', async (req, res) => {
+  try {
+    const { provider, remoteName } = req.body;
+    
+    const typeMap = {
+      'google': 'drive',
+      'onedrive': 'onedrive',
+      'dropbox': 'dropbox'
+    };
+    
+    const driveType = typeMap[provider];
+    if (!driveType) {
+      return res.status(400).json({ error: 'Unsupported provider' });
+    }
+    
+    // Generate scope for the provider
+    let scope = '';
+    if (provider === 'google') {
+      scope = '{"scope":"drive"}';
+    }
+    
+    // Execute rclone authorize to get the URL (but don't complete it)
+    const cmd = `rclone authorize "${driveType}" ${scope} --auth-no-open-browser 2>&1`;
+    
+    exec(cmd, { timeout: 5000, env: { ...process.env, RCLONE_CONFIG: RCLONE_CONFIG_FILE } }, (error, stdout, stderr) => {
+      // Extract the auth URL from output
+      const urlMatch = stdout.match(/https:\/\/[^\s]+/);
+      
+      if (urlMatch) {
+        // Store the remote name for later
+        global.pendingAuths = global.pendingAuths || {};
+        global.pendingAuths[remoteName] = { provider, driveType };
+        
+        res.json({
+          success: true,
+          authUrl: urlMatch[0],
+          remoteName: remoteName
+        });
+      } else {
+        res.status(500).json({ 
+          error: 'Could not generate auth URL',
+          output: stdout,
+          stderr: stderr
+        });
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Complete rclone OAuth with authorization code
+app.post('/api/rclone/auth/complete', async (req, res) => {
+  try {
+    const { provider, remoteName, code } = req.body;
+    
+    global.pendingAuths = global.pendingAuths || {};
+    const authInfo = global.pendingAuths[remoteName];
+    
+    if (!authInfo) {
+      return res.status(400).json({ error: 'No pending authorization found' });
+    }
+    
+    const { driveType } = authInfo;
+    
+    // Create rclone config using the code
+    // This is complex - we need to use rclone config create with the token
+    const configCmd = `rclone config create "${remoteName}" "${driveType}" config_token "${code}" config_refresh_token false`;
+    
+    exec(configCmd, { env: { ...process.env, RCLONE_CONFIG: RCLONE_CONFIG_FILE } }, async (error, stdout, stderr) => {
+      if (error) {
+        return res.status(500).json({ 
+          error: 'Failed to create remote',
+          details: stderr || error.message
+        });
+      }
+      
+      // Verify the remote was created
+      exec(`rclone listremotes --config "${RCLONE_CONFIG_FILE}"`, (err, out) => {
+        if (out.includes(remoteName)) {
+          // Success! Add to accounts
+          const accountId = uuidv4();
+          const account = {
+            id: accountId,
+            name: `${provider} (${remoteName})`,
+            type: provider,
+            remoteName: remoteName,
+            authMethod: 'oauth',
+            status: 'active',
+            addedAt: new Date().toISOString()
+          };
+          
+          poolsData.accounts.push(account);
+          saveData();
+          broadcast({ type: 'account_added', account });
+          
+          // Clean up pending auth
+          delete global.pendingAuths[remoteName];
+          
+          res.json({
+            success: true,
+            remoteName: remoteName,
+            account: account
+          });
+        } else {
+          res.status(500).json({ error: 'Remote creation verification failed' });
+        }
+      });
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add account with credentials (Mega, FTP, etc.)
+app.post('/api/rclone/auth/credentials', async (req, res) => {
+  try {
+    const { provider, remoteName, username, password } = req.body;
+    
+    const typeMap = {
+      'mega': 'mega',
+      'ftp': 'ftp',
+      'sftp': 'sftp'
+    };
+    
+    const driveType = typeMap[provider];
+    if (!driveType) {
+      return res.status(400).json({ error: 'Unsupported provider' });
+    }
+    
+    // Create rclone config with credentials
+    let configCmd = '';
+    if (provider === 'mega') {
+      configCmd = `rclone config create "${remoteName}" "${driveType}" user "${username}" pass "$(rclone obscure '${password}')"`;
+    }
+    
+    exec(configCmd, { env: { ...process.env, RCLONE_CONFIG: RCLONE_CONFIG_FILE } }, async (error, stdout, stderr) => {
+      if (error) {
+        return res.status(500).json({ 
+          error: 'Failed to create remote',
+          details: stderr || error.message
+        });
+      }
+      
+      // Add to accounts
+      const accountId = uuidv4();
+      const account = {
+        id: accountId,
+        name: `${provider} (${username})`,
+        type: provider,
+        remoteName: remoteName,
+        authMethod: 'credentials',
+        status: 'active',
+        addedAt: new Date().toISOString()
+      };
+      
+      poolsData.accounts.push(account);
+      await saveData();
+      broadcast({ type: 'account_added', account });
+      
+      res.json({
+        success: true,
+        remoteName: remoteName,
+        account: account
+      });
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get system status
 app.get('/api/status', async (req, res) => {
   try {

@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Setup Wizard - Pooled Storage</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0f172a;
+            color: #f1f5f9;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .wizard-card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 32px;
+            margin: 20px 0;
+        }
+        h1 {
+            color: #4f46e5;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #94a3b8;
+            margin-bottom: 32px;
+        }
+        .step {
+            background: #334155;
+            padding: 24px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #4f46e5;
+        }
+        .step-number {
+            background: #4f46e5;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 12px;
+            font-size: 18px;
+        }
+        .step-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 8px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        button:hover {
+            background: #4338ca;
+            transform: translateY(-1px);
+        }
+        button:disabled {
+            background: #64748b;
+            cursor: not-allowed;
+            transform: none;
+        }
+        button.provider-btn {
+            background: #334155;
+            padding: 24px;
+            width: 200px;
+            height: 120px;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #334155;
+        }
+        button.provider-btn:hover {
+            border-color: #4f46e5;
+            background: #475569;
+        }
+        button.provider-btn.selected {
+            border-color: #4f46e5;
+            background: #4338ca;
+        }
+        .provider-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        .providers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .terminal-output {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 16px 0;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .auth-url {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            word-break: break-all;
+        }
+        .auth-url a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+        .auth-url a:hover {
+            text-decoration: underline;
+        }
+        .success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid #10b981;
+            color: #10b981;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            color: #ef4444;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #64748b;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 8px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .hidden {
+            display: none;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #f1f5f9;
+            font-size: 14px;
+            margin: 8px 0;
+            box-sizing: border-box;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid #3b82f6;
+            color: #93c5fd;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        .progress-bar {
+            background: #334155;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-fill {
+            background: #4f46e5;
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="wizard-card">
+            <h1>🚀 Easy Setup Wizard</h1>
+            <p class="subtitle">Add your cloud storage accounts with one-click automation</p>
+            
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+
+            <!-- Step 1: Choose Provider -->
+            <div id="step1" class="step">
+                <div class="step-title">
+                    <span class="step-number">1</span>
+                    Choose Your Cloud Provider
+                </div>
+                
+                <div class="providers-grid">
+                    <button class="provider-btn" onclick="selectProvider('google')">
+                        <div class="provider-icon">📁</div>
+                        <strong>Google Drive</strong>
+                        <small>15GB free</small>
+                    </button>
+                    <button class="provider-btn" onclick="selectProvider('onedrive')">
+                        <div class="provider-icon">📂</div>
+                        <strong>OneDrive</strong>
+                        <small>5GB free</small>
+                    </button>
+                    <button class="provider-btn" onclick="selectProvider('dropbox')">
+                        <div class="provider-icon">📦</div>
+                        <strong>Dropbox</strong>
+                        <small>2GB free</small>
+                    </button>
+                    <button class="provider-btn" onclick="selectProvider('mega')">
+                        <div class="provider-icon">🔷</div>
+                        <strong>Mega</strong>
+                        <small>20GB free</small>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 2: Automated Setup -->
+            <div id="step2" class="step hidden">
+                <div class="step-title">
+                    <span class="step-number">2</span>
+                    <span id="step2Title">Automated Setup</span>
+                </div>
+                
+                <div id="setupContent">
+                    <p id="setupInstructions">Setting up your account...</p>
+                    
+                    <div id="terminalOutput" class="terminal-output hidden"></div>
+                    
+                    <div id="authUrlContainer" class="hidden">
+                        <p><strong>📋 Click this link to authorize:</strong></p>
+                        <div class="auth-url">
+                            <a id="authUrl" href="#" target="_blank">Click here to authorize</a>
+                        </div>
+                        <p style="color: #94a3b8; font-size: 14px;">After authorizing, you'll get a code. Paste it below:</p>
+                        <input type="text" id="authCode" placeholder="Paste your authorization code here">
+                        <button onclick="submitAuthCode()">✅ Submit Code</button>
+                    </div>
+                    
+                    <div id="credentialsForm" class="hidden">
+                        <p><strong>Enter your credentials:</strong></p>
+                        <input type="text" id="username" placeholder="Email or username">
+                        <input type="password" id="password" placeholder="Password">
+                        <button onclick="submitCredentials()">🔐 Connect Account</button>
+                    </div>
+                    
+                    <div id="statusMessage"></div>
+                </div>
+            </div>
+
+            <!-- Step 3: Success -->
+            <div id="step3" class="step hidden">
+                <div class="step-title">
+                    <span class="step-number">3</span>
+                    Account Added Successfully!
+                </div>
+                
+                <div class="success">
+                    <strong>✅ Your account has been added!</strong>
+                    <p id="accountDetails"></p>
+                </div>
+                
+                <div class="info-box">
+                    <strong>🎯 Next Steps:</strong>
+                    <ol style="margin: 12px 0; padding-left: 20px;">
+                        <li>Go to the <a href="/" style="color: #60a5fa;">main dashboard</a></li>
+                        <li>Create a storage pool</li>
+                        <li>Add this account to your pool</li>
+                        <li>Start the pool and mount in OpenMediaVault</li>
+                    </ol>
+                </div>
+                
+                <button onclick="addAnotherAccount()">➕ Add Another Account</button>
+                <button onclick="goToDashboard()" style="background: #10b981;">📊 Go to Dashboard</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedProvider = '';
+        let remoteName = '';
+        let currentStep = 1;
+
+        const PROVIDERS = {
+            google: { name: 'Google Drive', type: 'drive', auth: 'oauth' },
+            onedrive: { name: 'OneDrive', type: 'onedrive', auth: 'oauth' },
+            dropbox: { name: 'Dropbox', type: 'dropbox', auth: 'oauth' },
+            mega: { name: 'Mega', type: 'mega', auth: 'credentials' }
+        };
+
+        function updateProgress(percent) {
+            document.getElementById('progressBar').style.width = percent + '%';
+        }
+
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.className = type;
+            statusDiv.innerHTML = message;
+        }
+
+        function selectProvider(provider) {
+            selectedProvider = provider;
+            const config = PROVIDERS[provider];
+            
+            // Update UI
+            document.querySelectorAll('.provider-btn').forEach(btn => btn.classList.remove('selected'));
+            event.target.closest('.provider-btn').classList.add('selected');
+            
+            // Move to step 2
+            setTimeout(() => {
+                document.getElementById('step1').style.opacity = '0.5';
+                document.getElementById('step2').classList.remove('hidden');
+                document.getElementById('step2Title').textContent = `Setting up ${config.name}`;
+                currentStep = 2;
+                updateProgress(50);
+                
+                // Start automated setup
+                startAutomatedSetup(provider);
+            }, 300);
+        }
+
+        async function startAutomatedSetup(provider) {
+            const config = PROVIDERS[provider];
+            remoteName = `${provider}${Date.now()}`;
+            
+            showTerminal(`Starting setup for ${config.name}...`);
+            
+            try {
+                if (config.auth === 'oauth') {
+                    await setupOAuthProvider(provider);
+                } else if (config.auth === 'credentials') {
+                    setupCredentialsProvider(provider);
+                }
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function setupOAuthProvider(provider) {
+            showTerminal(`Generating authorization URL...`);
+            
+            try {
+                const response = await fetch('/api/rclone/auth/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        provider: provider,
+                        remoteName: remoteName
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.authUrl) {
+                    showTerminal(`Authorization URL generated!`);
+                    document.getElementById('authUrl').href = data.authUrl;
+                    document.getElementById('authUrlContainer').classList.remove('hidden');
+                    document.getElementById('setupInstructions').textContent = 
+                        'Click the link below to authorize, then paste the code you receive:';
+                } else {
+                    throw new Error(data.error || 'Failed to generate auth URL');
+                }
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function setupCredentialsProvider(provider) {
+            document.getElementById('setupInstructions').textContent = 
+                `Enter your ${PROVIDERS[provider].name} credentials:`;
+            document.getElementById('credentialsForm').classList.remove('hidden');
+        }
+
+        async function submitAuthCode() {
+            const code = document.getElementById('authCode').value.trim();
+            
+            if (!code) {
+                showStatus('❌ Please enter the authorization code', 'error');
+                return;
+            }
+            
+            showTerminal(`Submitting authorization code...`);
+            showStatus('⏳ Processing authorization...');
+            
+            try {
+                const response = await fetch('/api/rclone/auth/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        provider: selectedProvider,
+                        remoteName: remoteName,
+                        code: code
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showTerminal(`✅ Authorization successful!`);
+                    showSuccess(data);
+                } else {
+                    throw new Error(data.error || 'Authorization failed');
+                }
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function submitCredentials() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            
+            if (!username || !password) {
+                showStatus('❌ Please enter both username and password', 'error');
+                return;
+            }
+            
+            showTerminal(`Connecting to ${PROVIDERS[selectedProvider].name}...`);
+            showStatus('⏳ Verifying credentials...');
+            
+            try {
+                const response = await fetch('/api/rclone/auth/credentials', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        provider: selectedProvider,
+                        remoteName: remoteName,
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showTerminal(`✅ Account connected successfully!`);
+                    showSuccess(data);
+                } else {
+                    throw new Error(data.error || 'Connection failed');
+                }
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        function showSuccess(data) {
+            updateProgress(100);
+            document.getElementById('step2').style.display = 'none';
+            document.getElementById('step3').classList.remove('hidden');
+            
+            document.getElementById('accountDetails').innerHTML = `
+                <strong>Remote Name:</strong> ${data.remoteName || remoteName}<br>
+                <strong>Provider:</strong> ${PROVIDERS[selectedProvider].name}<br>
+                <strong>Status:</strong> Ready to use
+            `;
+        }
+
+        function showTerminal(message) {
+            const terminal = document.getElementById('terminalOutput');
+            terminal.classList.remove('hidden');
+            terminal.textContent += message + '\n';
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function addAnotherAccount() {
+            location.reload();
+        }
+
+        function goToDashboard() {
+            window.location.href = '/';
+        }
+
+        // Initialize
+        updateProgress(0);
+    </script>
+</body>
+</html>
