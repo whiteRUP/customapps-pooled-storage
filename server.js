@@ -278,21 +278,126 @@ app.post('/api/accounts/service', async (req, res) => {
   }
 });
 
-// Start OAuth authorization
+// Start OAuth authorization - Generate auth URL
 app.post('/api/accounts/oauth/start', async (req, res) => {
   try {
     const { type } = req.body;
-    const remoteName = `temp_${type}_${Date.now()}`;
+    const stateId = uuidv4();
     
-    let driveType = type === 'google' ? 'drive' : 'onedrive';
+    // Store state for later verification
+    const authState = {
+      type,
+      timestamp: Date.now(),
+      completed: false
+    };
     
-    // Use rclone authorize to get token
-    const result = await execRclone(`authorize ${driveType}`);
+    // Save state (in production, use Redis or similar)
+    global.authStates = global.authStates || {};
+    global.authStates[stateId] = authState;
     
-    res.json({ 
-      remoteName,
-      instructions: 'Complete the authorization in your browser, then paste the token'
+    // Get authorization URL from rclone
+    const driveType = type === 'google' ? 'drive' : 'onedrive';
+    
+    // Create a temp rclone config to get auth URL
+    const tempRemote = `temp_${Date.now()}`;
+    const scope = type === 'google' ? '{"scope":"drive"}' : '';
+    
+    // Get the auth URL
+    const cmd = `rclone authorize ${driveType} ${scope} --auth-no-open-browser`;
+    
+    exec(cmd, { env: { ...process.env, RCLONE_CONFIG: RCLONE_CONFIG_FILE } }, (error, stdout, stderr) => {
+      if (error) {
+        return res.status(500).json({ error: 'Failed to generate auth URL', details: stderr });
+      }
+      
+      // Extract the auth URL from stdout
+      const urlMatch = stdout.match(/https:\/\/[^\s]+/);
+      if (urlMatch) {
+        res.json({
+          authUrl: urlMatch[0],
+          stateId,
+          instructions: 'Click the URL to authorize, then you will be redirected back'
+        });
+      } else {
+        res.status(500).json({ error: 'Could not generate auth URL', output: stdout });
+      }
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// OAuth callback handler
+app.get('/api/accounts/oauth/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+    
+    if (!code || !state) {
+      return res.status(400).send('Missing code or state');
+    }
+    
+    // Verify state
+    global.authStates = global.authStates || {};
+    const authState = global.authStates[state];
+    
+    if (!authState) {
+      return res.status(400).send('Invalid state');
+    }
+    
+    // Store the code for the frontend to retrieve
+    authState.code = code;
+    authState.completed = true;
+    
+    // Redirect back to dashboard with success
+    res.send(`
+      <html>
+        <head><title>Authorization Successful</title></head>
+        <body style="font-family: Arial; text-align: center; padding: 50px;">
+          <h1>✅ Authorization Successful!</h1>
+          <p>You can close this window and return to the dashboard.</p>
+          <p>Your code: <code>${code}</code></p>
+          <script>
+            window.opener?.postMessage({ type: 'oauth_success', code: '${code}', state: '${state}' }, '*');
+            setTimeout(() => window.close(), 3000);
+          </script>
+        </body>
+      </html>
+    `);
+  } catch (error) {
+    res.status(500).send('Authorization failed: ' + error.message);
+  }
+});
+
+// Complete OAuth with code
+app.post('/api/accounts/oauth/complete', async (req, res) => {
+  try {
+    const { name, type, code, stateId } = req.body;
+    
+    // Verify state
+    global.authStates = global.authStates || {};
+    const authState = global.authStates[stateId];
+    
+    if (!authState || !authState.completed) {
+      return res.status(400).json({ error: 'Invalid or incomplete authorization' });
+    }
+    
+    // Exchange code for token using rclone
+    const driveType = type === 'google' ? 'drive' : 'onedrive';
+    const accountId = uuidv4();
+    const remoteName = `${type}_${accountId.substring(0, 8)}`;
+    
+    // Create the remote with the code
+    // This requires running rclone config programmatically
+    // For now, we'll need the full token JSON
+    
+    res.status(501).json({ 
+      error: 'Token exchange not yet implemented',
+      message: 'Please use the OAuth Token method and paste the full JSON token'
+    });
+    
+    // Clean up state
+    delete global.authStates[stateId];
+    
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

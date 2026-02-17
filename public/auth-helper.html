@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Easy Authentication Helper</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0f172a;
+            color: #f1f5f9;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 32px;
+            margin: 20px 0;
+        }
+        h1 {
+            color: #4f46e5;
+            margin-bottom: 8px;
+        }
+        .step {
+            background: #334155;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        .step-number {
+            background: #4f46e5;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 12px;
+        }
+        button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 8px;
+        }
+        button:hover {
+            background: #4338ca;
+        }
+        button.secondary {
+            background: #64748b;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: #f1f5f9;
+            font-size: 14px;
+            margin: 8px 0;
+            font-family: 'Courier New', monospace;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .hidden {
+            display: none;
+        }
+        .success {
+            background: #10b981;
+            color: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        .error {
+            background: #ef4444;
+            color: white;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        code {
+            background: #0f172a;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        .provider-btn {
+            background: #334155;
+            padding: 24px;
+            margin: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            border: 2px solid #334155;
+        }
+        .provider-btn:hover {
+            border-color: #4f46e5;
+        }
+        .providers {
+            display: flex;
+            gap: 16px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔐 Easy Authentication Helper</h1>
+        <p>Add your Google Drive or OneDrive account in 3 easy steps</p>
+    </div>
+
+    <div id="step1" class="card">
+        <div class="step">
+            <span class="step-number">1</span>
+            <strong>Choose Your Provider</strong>
+        </div>
+        
+        <div class="providers">
+            <div class="provider-btn" onclick="selectProvider('google')">
+                <h3>📁 Google Drive</h3>
+                <p>Connect your Google account</p>
+            </div>
+            <div class="provider-btn" onclick="selectProvider('microsoft')">
+                <h3>📂 OneDrive</h3>
+                <p>Connect your Microsoft account</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="step2" class="card hidden">
+        <div class="step">
+            <span class="step-number">2</span>
+            <strong>Click to Authorize</strong>
+        </div>
+        
+        <p>Click the button below to open the authorization page:</p>
+        <button id="authButton" onclick="openAuthWindow()">🔓 Open Authorization Page</button>
+        
+        <div id="authUrl" class="hidden" style="margin-top: 20px;">
+            <p>Or copy this URL manually:</p>
+            <input type="text" id="urlInput" readonly onclick="this.select()">
+            <button onclick="copyUrl()">📋 Copy URL</button>
+        </div>
+    </div>
+
+    <div id="step3" class="card hidden">
+        <div class="step">
+            <span class="step-number">3</span>
+            <strong>Paste Your Token</strong>
+        </div>
+        
+        <p>After authorizing, you'll get a token (JSON format). Paste it here:</p>
+        
+        <label>Account Name:</label>
+        <input type="text" id="accountName" placeholder="e.g., My Google Drive">
+        
+        <label>OAuth Token (JSON):</label>
+        <textarea id="tokenInput" placeholder='{"access_token":"...","token_type":"Bearer",...}'></textarea>
+        
+        <button onclick="submitAccount()">✅ Add Account to Dashboard</button>
+        <button class="secondary" onclick="resetForm()">🔄 Start Over</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        let selectedProvider = '';
+        let authWindow = null;
+
+        function selectProvider(provider) {
+            selectedProvider = provider;
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step2').classList.remove('hidden');
+            
+            // Generate auth URL based on provider
+            if (provider === 'google') {
+                generateGoogleAuthUrl();
+            } else {
+                generateOneDriveAuthUrl();
+            }
+        }
+
+        function generateGoogleAuthUrl() {
+            // Google Drive OAuth URL
+            const clientId = '202264815644.apps.googleusercontent.com'; // rclone's client ID
+            const redirectUri = 'urn:ietf:wg:oauth:2.0:oob';
+            const scope = 'https://www.googleapis.com/auth/drive';
+            
+            const authUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
+            
+            document.getElementById('urlInput').value = authUrl;
+            document.getElementById('authButton').onclick = () => window.open(authUrl, '_blank');
+            document.getElementById('authUrl').classList.remove('hidden');
+        }
+
+        function generateOneDriveAuthUrl() {
+            // OneDrive OAuth URL
+            const clientId = 'b15665d9-eda6-4092-8539-0eec376afd59'; // rclone's client ID
+            const redirectUri = 'http://localhost:53682/';
+            const scope = 'Files.Read Files.ReadWrite Files.Read.All Files.ReadWrite.All offline_access';
+            
+            const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&prompt=consent`;
+            
+            document.getElementById('urlInput').value = authUrl;
+            document.getElementById('authButton').onclick = () => window.open(authUrl, '_blank');
+            document.getElementById('authUrl').classList.remove('hidden');
+        }
+
+        function openAuthWindow() {
+            const url = document.getElementById('urlInput').value;
+            authWindow = window.open(url, 'OAuth Authorization', 'width=600,height=700');
+            
+            // Show step 3 after opening window
+            setTimeout(() => {
+                document.getElementById('step3').classList.remove('hidden');
+            }, 2000);
+        }
+
+        function copyUrl() {
+            const input = document.getElementById('urlInput');
+            input.select();
+            document.execCommand('copy');
+            alert('URL copied to clipboard!');
+        }
+
+        async function submitAccount() {
+            const accountName = document.getElementById('accountName').value;
+            const tokenText = document.getElementById('tokenInput').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!accountName || !tokenText) {
+                resultDiv.innerHTML = '<div class="error">Please fill in all fields</div>';
+                return;
+            }
+            
+            let token;
+            try {
+                token = JSON.parse(tokenText);
+            } catch (e) {
+                resultDiv.innerHTML = '<div class="error">Invalid JSON token. Please check the format.</div>';
+                return;
+            }
+            
+            // Submit to API
+            try {
+                const response = await fetch('/api/accounts/oauth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: accountName,
+                        type: selectedProvider,
+                        token: token
+                    })
+                });
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = '<div class="success">✅ Account added successfully! Redirecting to dashboard...</div>';
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                } else {
+                    const error = await response.json();
+                    resultDiv.innerHTML = `<div class="error">❌ Error: ${error.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Failed to connect to server: ${error.message}</div>`;
+            }
+        }
+
+        function resetForm() {
+            location.reload();
+        }
+
+        // Listen for OAuth callback (if using popup)
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'oauth_success') {
+                document.getElementById('tokenInput').value = JSON.stringify(event.data.token, null, 2);
+                document.getElementById('step3').classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
